@@ -23,4 +23,6 @@ data class AuthenticationStoreServer(
 	@SerialName("last_used") val lastUsed: Long = Instant.now().toEpochMilli(),
 	@SerialName("last_refreshed") val lastRefreshed: Long = Instant.now().toEpochMilli(),
 	val users: Map<UUID, AuthenticationStoreUser> = emptyMap(),
+	@SerialName("ca_certificate") val caCertificate: String? = null,
+	@SerialName("allow_system_cas") val allowSystemCas: Boolean = true,
 )

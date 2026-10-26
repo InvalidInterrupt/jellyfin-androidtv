@@ -17,6 +17,8 @@ data class Server(
 	val splashscreenEnabled: Boolean = false,
 	val setupCompleted: Boolean = true,
 	var dateLastAccessed: Instant = Instant.MIN,
+	val caCertificate: String? = null,
+	val allowSystemCas: Boolean = true,
 ) {
 	val serverVersion = version?.let(ServerVersion::fromString)
 	val versionSupported = serverVersion != null && serverVersion >= ServerRepository.minimumServerVersion

@@ -25,6 +25,7 @@ import org.jellyfin.playback.media3.exoplayer.ExoPlayerOptions
 import org.jellyfin.playback.media3.exoplayer.exoPlayerPlugin
 import org.jellyfin.playback.media3.session.MediaSessionOptions
 import org.jellyfin.playback.media3.session.media3SessionPlugin
+import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.HttpClientOptions
 import org.jellyfin.sdk.api.okhttp.OkHttpFactory
 import org.jellyfin.sdk.model.api.MediaSegmentType
@@ -48,8 +49,11 @@ val playbackModule = module {
 			// Disable request timeout for media playback as this causes issues with Live TV
 			requestTimeout = Duration.ZERO
 		)
+		val client = get<ApiClient>()
 
-		OkHttpDataSource.Factory(okHttpFactory.createClient(httpClientOptions))
+		OkHttpDataSource.Factory(
+			okHttpFactory.createClient(httpClientOptions, caCertificate = client.caCertificate, allowSystemCas = client.allowSystemCas)
+		)
 	}
 
 	single { createPlaybackManager() }

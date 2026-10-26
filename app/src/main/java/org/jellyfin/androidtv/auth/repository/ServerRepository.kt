@@ -16,7 +16,9 @@ import org.jellyfin.androidtv.auth.model.Server
 import org.jellyfin.androidtv.auth.model.ServerAdditionState
 import org.jellyfin.androidtv.auth.model.UnableToConnectState
 import org.jellyfin.androidtv.auth.store.AuthenticationStore
+import org.jellyfin.androidtv.util.deserializePEM
 import org.jellyfin.androidtv.util.sdk.toServer
+import org.jellyfin.androidtv.util.serializePEM
 import org.jellyfin.sdk.Jellyfin
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.exception.ApiClientException
@@ -30,6 +32,7 @@ import org.jellyfin.sdk.model.api.BrandingOptionsDto
 import org.jellyfin.sdk.model.api.ServerDiscoveryInfo
 import org.jellyfin.sdk.model.serializer.toUUID
 import timber.log.Timber
+import java.security.cert.Certificate
 import java.time.Instant
 import java.util.UUID
 
@@ -46,7 +49,7 @@ interface ServerRepository {
 
 	fun setCurrentServer(server: Server?)
 
-	fun addServer(address: String): Flow<ServerAdditionState>
+	fun addServer(address: String, caCertificate: Certificate? = null, allowSystemCas: Boolean = true): Flow<ServerAdditionState>
 	suspend fun getServer(id: UUID, eagerUpdate: Boolean = false): Server?
 	suspend fun updateServer(server: Server, force: Boolean = false): Boolean
 	suspend fun deleteServer(server: UUID): Boolean
@@ -98,7 +101,7 @@ class ServerRepositoryImpl(
 	}
 
 	// Mutating data
-	override fun addServer(address: String): Flow<ServerAdditionState> = flow {
+	override fun addServer(address: String, caCertificate: Certificate?, allowSystemCas: Boolean): Flow<ServerAdditionState> = flow {
 		Timber.i("Adding server %s", address)
 
 		emit(ConnectingState(address))
@@ -108,7 +111,9 @@ class ServerRepositoryImpl(
 
 		val goodRecommendations = mutableListOf<RecommendedServerInfo>()
 		val badRecommendations = mutableListOf<RecommendedServerInfo>()
-		val greatRecommendation = jellyfin.discovery.getRecommendedServers(addressCandidates).firstOrNull { recommendedServer ->
+		val greatRecommendation = jellyfin.discovery.getRecommendedServers(
+			addressCandidates, caCertificate = caCertificate, allowSystemCas = allowSystemCas
+		).firstOrNull { recommendedServer ->
 			when (recommendedServer.score) {
 				RecommendedServerInfoScore.GREAT -> true
 				RecommendedServerInfoScore.GOOD -> {
@@ -140,7 +145,7 @@ class ServerRepositoryImpl(
 			val systemInfo = chosenRecommendation.systemInfo.getOrThrow()
 
 			// Get branding info
-			val api = jellyfin.createApi(chosenRecommendation.address)
+			val api = jellyfin.createApi(chosenRecommendation.address, caCertificate = caCertificate, allowSystemCas = allowSystemCas)
 			val branding = api.getBrandingOptionsOrDefault()
 
 			val id = systemInfo.id!!.toUUID()
@@ -152,7 +157,9 @@ class ServerRepositoryImpl(
 				loginDisclaimer = branding.loginDisclaimer,
 				splashscreenEnabled = branding.splashscreenEnabled,
 				setupCompleted = systemInfo.startupWizardCompleted ?: true,
-				lastUsed = Instant.now().toEpochMilli()
+				lastUsed = Instant.now().toEpochMilli(),
+				caCertificate = caCertificate?.let { serializePEM(it) },
+				allowSystemCas = allowSystemCas,
 			) ?: AuthenticationStoreServer(
 				name = systemInfo.serverName ?: "Jellyfin Server",
 				address = chosenRecommendation.address,
@@ -160,6 +167,8 @@ class ServerRepositoryImpl(
 				loginDisclaimer = branding.loginDisclaimer,
 				splashscreenEnabled = branding.splashscreenEnabled,
 				setupCompleted = systemInfo.startupWizardCompleted ?: true,
+				caCertificate = caCertificate?.let { serializePEM(it) },
+				allowSystemCas = allowSystemCas,
 			)
 
 			authenticationStore.putServer(id, server)
@@ -216,7 +225,9 @@ class ServerRepositoryImpl(
 		if (now - server.lastRefreshed < 600000 && server.version != null && !forceUpdate) return null
 
 		val newServer = withContext(Dispatchers.IO) {
-			val api = jellyfin.createApi(server.address)
+			val api = jellyfin.createApi(
+				server.address, caCertificate = server.caCertificate?.let({ deserializePEM(it) }), allowSystemCas = server.allowSystemCas
+			)
 
 			// Get login disclaimer
 			val branding = api.getBrandingOptionsOrDefault()
@@ -252,6 +263,8 @@ class ServerRepositoryImpl(
 		splashscreenEnabled = splashscreenEnabled,
 		setupCompleted = setupCompleted,
 		dateLastAccessed = Instant.ofEpochMilli(lastUsed),
+		caCertificate = caCertificate,
+		allowSystemCas = allowSystemCas,
 	)
 
 	/**

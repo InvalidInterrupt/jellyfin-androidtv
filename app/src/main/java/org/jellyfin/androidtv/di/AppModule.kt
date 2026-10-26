@@ -63,6 +63,7 @@ import org.jellyfin.androidtv.util.coil.CoilTimberLogger
 import org.jellyfin.androidtv.util.coil.createCoilConnectivityChecker
 import org.jellyfin.androidtv.util.sdk.SdkPlaybackHelper
 import org.jellyfin.sdk.android.androidDevice
+import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.HttpClientOptions
 import org.jellyfin.sdk.api.okhttp.OkHttpFactory
 import org.jellyfin.sdk.createJellyfin
@@ -113,10 +114,13 @@ val appModule = module {
 	single {
 		val okHttpFactory = get<OkHttpFactory>()
 		val httpClientOptions = get<HttpClientOptions>()
+		val client = get<ApiClient>()
 
 		@OptIn(ExperimentalCoilApi::class)
 		OkHttpNetworkFetcherFactory(
-			callFactory = { okHttpFactory.createClient(httpClientOptions) },
+			callFactory = {
+				okHttpFactory.createClient(httpClientOptions, caCertificate = client.caCertificate, allowSystemCas = client.allowSystemCas)
+			},
 			connectivityChecker = ::createCoilConnectivityChecker,
 		)
 	}

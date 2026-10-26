@@ -6,6 +6,7 @@ import org.jellyfin.androidtv.auth.model.PrivateUser
 import org.jellyfin.androidtv.auth.model.PublicUser
 import org.jellyfin.androidtv.auth.model.Server
 import org.jellyfin.androidtv.auth.store.AuthenticationStore
+import org.jellyfin.androidtv.util.deserializePEM
 import org.jellyfin.androidtv.util.sdk.toPublicUser
 import org.jellyfin.sdk.Jellyfin
 import org.jellyfin.sdk.api.client.exception.ApiClientException
@@ -46,7 +47,9 @@ class ServerUserRepositoryImpl(
 
 	override suspend fun getPublicServerUsers(server: Server): List<PublicUser> {
 		// Create a fresh API because the shared one might be authenticated for a different server
-		val api = jellyfin.createApi(server.address)
+		val api = jellyfin.createApi(
+			server.address, caCertificate = server.caCertificate?.let({ deserializePEM(it) }), allowSystemCas = server.allowSystemCas
+		)
 
 		return try {
 			val users = withContext(Dispatchers.IO) {

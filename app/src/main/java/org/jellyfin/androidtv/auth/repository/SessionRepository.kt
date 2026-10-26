@@ -16,6 +16,7 @@ import org.jellyfin.androidtv.preference.TelemetryPreferences
 import org.jellyfin.androidtv.preference.constant.UserSelectBehavior.DISABLED
 import org.jellyfin.androidtv.preference.constant.UserSelectBehavior.LAST_USER
 import org.jellyfin.androidtv.preference.constant.UserSelectBehavior.SPECIFIC_USER
+import org.jellyfin.androidtv.util.deserializePEM
 import org.jellyfin.androidtv.util.sdk.forUser
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.exception.ApiClientException
@@ -191,6 +192,8 @@ class SessionRepositoryImpl(
 				baseUrl = null,
 				accessToken = null,
 				deviceInfo = newDeviceInfo,
+				caCertificate = null,
+				allowSystemCas = true,
 			)
 		} else {
 			val server = authenticationStore.getServer(session.serverId)
@@ -200,6 +203,8 @@ class SessionRepositoryImpl(
 				baseUrl = server.address,
 				accessToken = session.accessToken,
 				deviceInfo = newDeviceInfo,
+				caCertificate = server.caCertificate?.let {deserializePEM(it)},
+				allowSystemCas = server.allowSystemCas,
 			)
 		}
 

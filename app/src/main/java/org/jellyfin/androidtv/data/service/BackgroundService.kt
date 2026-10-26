@@ -19,6 +19,7 @@ import org.jellyfin.androidtv.preference.constant.BackdropBehavior
 import org.jellyfin.androidtv.util.apiclient.getUrl
 import org.jellyfin.androidtv.util.apiclient.itemBackdropImages
 import org.jellyfin.androidtv.util.apiclient.parentBackdropImages
+import org.jellyfin.androidtv.util.deserializePEM
 import org.jellyfin.sdk.Jellyfin
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.imageApi
@@ -93,7 +94,7 @@ class BackgroundService(
 		_blurBackground.value = false
 
 		// Manually grab the backdrop URL
-		val api = jellyfin.createApi(baseUrl = server.address)
+		val api = jellyfin.createApi(baseUrl = server.address, caCertificate = server.caCertificate?.let({ deserializePEM(it) }))
 		val splashscreenUrl = api.imageApi.getSplashscreenUrl()
 
 		loadBackgrounds(setOf(splashscreenUrl))

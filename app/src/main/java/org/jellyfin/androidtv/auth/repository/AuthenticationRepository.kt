@@ -27,6 +27,7 @@ import org.jellyfin.androidtv.util.apiclient.JellyfinImage
 import org.jellyfin.androidtv.util.apiclient.JellyfinImageSource
 import org.jellyfin.androidtv.util.apiclient.getUrl
 import org.jellyfin.androidtv.util.apiclient.primaryImage
+import org.jellyfin.androidtv.util.deserializePEM
 import org.jellyfin.androidtv.util.sdk.forUser
 import org.jellyfin.sdk.Jellyfin
 import org.jellyfin.sdk.api.client.ApiClient
@@ -82,7 +83,12 @@ class AuthenticationRepositoryImpl(
 	}
 
 	private fun authenticateCredential(server: Server, username: String, password: String) = flow {
-		val api = jellyfin.createApi(server.address, deviceInfo = defaultDeviceInfo.forUser(username))
+		val api = jellyfin.createApi(
+			server.address,
+			deviceInfo = defaultDeviceInfo.forUser(username),
+			caCertificate = server.caCertificate?.let({ deserializePEM(it) }),
+			allowSystemCas = server.allowSystemCas,
+		)
 		val result = try {
 			val response = api.authenticationApi.authenticateUserByName(username, password)
 			response.content
@@ -100,7 +106,12 @@ class AuthenticationRepositoryImpl(
 	}.flowOn(Dispatchers.IO)
 
 	private fun authenticateQuickConnect(server: Server, secret: String) = flow {
-		val api = jellyfin.createApi(server.address, deviceInfo = defaultDeviceInfo)
+		val api = jellyfin.createApi(
+			server.address,
+			deviceInfo = defaultDeviceInfo,
+			caCertificate = server.caCertificate?.let({ deserializePEM(it) }),
+			allowSystemCas = server.allowSystemCas,
+		)
 		val result = try {
 			val response = api.authenticationApi.authenticateWithQuickConnect(secret)
 			response.content
@@ -214,5 +225,9 @@ class AuthenticationRepositoryImpl(
 			aspectRatio = null,
 			index = null
 		)
-	}?.getUrl(jellyfin.createApi(server.address))
+	}?.getUrl(
+		jellyfin.createApi(
+			server.address, caCertificate = server.caCertificate?.let({ deserializePEM(it) }), allowSystemCas = server.allowSystemCas
+		)
+	)
 }
